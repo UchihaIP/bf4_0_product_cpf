@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 import csv
 import json
+import logging
 
 URL = "https://calorizator.ru/product"
 HEADERS = {
@@ -45,6 +46,24 @@ def main():
     dirty_json_paths: list[Path] = download_dirty_data(html_paths)
 
     json_paths: list[Path] = clear_json(dirty_json_paths)
+
+    csv_paths: list[Path] = clear_csv(dirty_json_paths)
+
+
+def clear_csv(dirty_json_paths: list[Path]) -> list[Path]:
+    files: list[Path] = []
+
+    for path in dirty_json_paths:
+        with open(path, "r", encoding="utf-8") as file:
+            data_json = json.load(file)
+
+        cleared_heads = [clear_str(key) for key in data_json[0].keys()]
+        cleared_data = [
+            [clear_str(value) for key, value in data.items()] for data in data_json
+        ]
+
+        files.append(write_csv(cleared_heads, cleared_data, path.stem))
+    return files
 
 
 def clear_str(data_string: str) -> str:
@@ -104,9 +123,9 @@ def write_json(data: list[dict], file_name: str, file_dir=JSON_DIR) -> Path:
 def write_csv(header: list, data: list[list], file_name: str) -> Path:
     file_path = f"{CSV_DIR}/{file_name}.csv"
     with open(file_path, "w", encoding="utf-8") as file:
-        csvout = csv.writer(file)
-        csvout.writerow(header)
-        csvout.writerows(data)
+        csv_out = csv.writer(file)
+        csv_out.writerow(header)
+        csv_out.writerows(data)
 
     return Path(file_path)
 
@@ -166,7 +185,7 @@ def download_category_pages(categories: list) -> list[Path]:
 
 def download_page(file_dir: Path, file_name: str, url: str = URL) -> Path:
 
-    req = requests.get(url=url, headers=HEADERS, timeout=5)
+    req = requests.get(url=url, headers=HEADERS, timeout=10)
 
     file_path = f"{file_dir}/{file_name}"
 
